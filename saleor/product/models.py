@@ -649,6 +649,14 @@ class ProductMedia(SortableModel):
         return self.product.media.all()
 
 
+class ProductImage(ProductMedia):
+    class Meta:
+        proxy = True
+
+    def get_ordering_queryset(self):
+        return self.product.media.filter(type=ProductMediaTypes.IMAGE).all()
+
+
 class VariantMedia(models.Model):
     variant = models.ForeignKey(
         "ProductVariant", related_name="variant_media", on_delete=models.CASCADE

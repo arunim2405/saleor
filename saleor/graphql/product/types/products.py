@@ -4,6 +4,7 @@ from typing import Optional
 import graphene
 from django.conf import settings
 from graphene import relay
+from graphene_django.utils import is_valid_django_model
 from graphene_federation import key
 from graphql.error import GraphQLError
 
@@ -203,7 +204,7 @@ class ProductVariant(ChannelContextTypeWithMetadata, CountableDjangoObjectType):
         ),
     )
     images = graphene.List(
-        lambda: ProductMedia,
+        lambda: ProductImage,
         description="List of images for the product variant.",
         deprecation_reason="Will be removed in Saleor 4.0. Use the `media` instead.",
     )
@@ -535,7 +536,7 @@ class Product(ChannelContextTypeWithMetadata, CountableDjangoObjectType):
         description="Get a single product media by ID.",
     )
     image_by_id = graphene.Field(
-        lambda: ProductMedia,
+        lambda: ProductImage,
         id=graphene.Argument(graphene.ID, description="ID of a product image."),
         description="Get a single product image by ID.",
         deprecation_reason=(
@@ -549,7 +550,7 @@ class Product(ChannelContextTypeWithMetadata, CountableDjangoObjectType):
         lambda: ProductMedia, description="List of media for the product."
     )
     images = graphene.List(
-        lambda: ProductMedia,
+        lambda: ProductImage,
         description="List of images for the product.",
         deprecation_reason=(
             "Will be removed in Saleor 4.0. Use the `media` field instead."
@@ -1168,7 +1169,7 @@ class ProductMedia(CountableDjangoObjectType):
 
     class Meta:
         description = "Represents a product media."
-        only_fields = ["alt", "id", "sort_order", "type"]
+        fields = ["alt", "id", "sort_order", "type"]
         interfaces = [relay.Node]
         model = models.ProductMedia
 
@@ -1198,13 +1199,12 @@ class ProductImage(CountableDjangoObjectType):
 
     class Meta:
         description = "Represents a product image."
-        only_fields = ["alt", "id", "sort_order"]
+        fields = ["alt", "id", "sort_order"]
         interfaces = [relay.Node]
-        skip_registry = True
-        model = models.ProductMedia
+        model = models.ProductImage
 
     @staticmethod
-    def resolve_url(root: models.ProductMedia, info, *, size=None):
+    def resolve_url(root: models.ProductImage, info, *, size=None):
         if size:
             url = get_thumbnail(root.image, size, method="thumbnail")
         else:
@@ -1214,3 +1214,13 @@ class ProductImage(CountableDjangoObjectType):
     @staticmethod
     def __resolve_reference(root, _info, **_kwargs):
         return graphene.Node.get_node_from_global_id(_info, root.id)
+
+    @classmethod
+    def is_type_of(cls, root, info):
+        if isinstance(root, cls):
+            return True
+
+        if not is_valid_django_model(root.__class__):
+            raise Exception(('Received incompatible instance "{}".').format(root))
+
+        return True
